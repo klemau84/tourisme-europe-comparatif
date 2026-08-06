@@ -1,0 +1,8 @@
+theme,source,jeu_de_donnees,url,usage
+Nuitées,Eurostat,tour_occ_ninat,https://ec.europa.eu/eurostat/databrowser/view/tour_occ_ninat/default/table,Nuitées totales et étrangères dans les hébergements touristiques
+Arrivées,Eurostat,tour_occ_arnat,https://ec.europa.eu/eurostat/databrowser/view/tour_occ_arnat/default/table,Arrivées dans les hébergements touristiques
+Capacité,Eurostat,tour_cap_nat,https://ec.europa.eu/eurostat/databrowser/view/tour_cap_nat/default/table,Nombre de places-lits touristiques
+Occupation hôtelière,Eurostat,tour_occ_anor,https://ec.europa.eu/eurostat/databrowser/view/tour_occ_anor/default/table,Taux net d'occupation des chambres d'hôtels
+Prix,Eurostat,prc_ppp_ind,https://ec.europa.eu/eurostat/databrowser/view/prc_ppp_ind/default/table,Indice comparatif de prix restaurants et hôtels UE=100
+Population,Eurostat,demo_pjan,https://ec.europa.eu/eurostat/databrowser/view/demo_pjan/default/table,Population utilisée pour les ratios par habitant
+Contexte,OCDE,Tourism Trends and Policies 2026,https://www.oecd.org/en/publications/oecd-tourism-trends-and-policies-2026_3fd3cd75-en.html,Analyse des politiques et performances touristiques
