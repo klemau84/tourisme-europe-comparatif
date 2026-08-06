@@ -83,7 +83,7 @@ year = metadata.get("annee_reference", "2024")
 
 st.title("Tourisme en Europe · fréquentation et compétitivité")
 st.caption(
-    "La V3 ajoute un comparateur détaillé des prix et un budget de séjour simulé "
+    "La V3.1 place les tarifs indicatifs en euros au premier plan et ajoute un budget de séjour simulé "
     "pour la France, l'Espagne et l'Italie."
 )
 
@@ -116,13 +116,13 @@ if filtered.empty:
     st.stop()
 
 (
-    tab_overview, tab_duel, tab_history, tab_seasonality, tab_regions,
-    tab_reasons, tab_prices, tab_budget, tab_data, tab_sources,
+    tab_budget, tab_overview, tab_duel, tab_history, tab_seasonality, tab_regions,
+    tab_reasons, tab_prices, tab_data, tab_sources,
 ) = st.tabs(
     [
-        "Vue européenne", "France vs Espagne", "Évolution 2019–2024",
+        "Tarifs en €", "Vue européenne", "France vs Espagne", "Évolution 2019–2024",
         "Saisonnalité", "Régions France–Espagne", "Pourquoi ces écarts ?",
-        "Hébergements & prix", "Prix FR–ES–IT", "Données détaillées", "Méthode & sources",
+        "Hébergements & prix", "Données détaillées", "Méthode & sources",
     ]
 )
 
@@ -391,7 +391,93 @@ with tab_prices:
     st.bar_chart(accommodation_chart)
 
 with tab_budget:
-    st.subheader("Prix détaillés · France, Espagne et Italie")
+    st.subheader("Tarifs indicatifs en euros · France, Espagne et Italie")
+    st.caption(
+        "Lecture prioritaire : prix unitaires estimés à partir d'une base française modifiable. "
+        "Ils donnent des ordres de grandeur comparables, pas des prix de réservation en temps réel."
+    )
+
+    country_colors = alt.Scale(
+        domain=["Espagne", "Italie", "France"],
+        range=["#f2b134", "#2a9d8f", "#457b9d"],
+    )
+    price_lookup = detailed_prices_df.set_index(["geo", "code_eurostat"])["indice_prix"].to_dict()
+    reference_rows = []
+    for _, row in budget_df.iterrows():
+        french_index = price_lookup.get(("FR", row["code_proxy"]))
+        for geo, country in [("ES", "Espagne"), ("IT", "Italie"), ("FR", "France")]:
+            country_index = price_lookup.get((geo, row["code_proxy"]))
+            ratio = country_index / french_index if french_index and country_index else 1.0
+            reference_rows.append({
+                "poste": row["poste"],
+                "unite": row["unite"],
+                "pays": country,
+                "prix_unitaire_estime": float(row["prix_base_france_eur"]) * ratio,
+                "quantite": float(row["quantite_defaut"]),
+            })
+    reference_prices = pd.DataFrame(reference_rows)
+    reference_prices["budget_poste"] = (
+        reference_prices["prix_unitaire_estime"] * reference_prices["quantite"]
+    )
+    reference_totals = reference_prices.groupby("pays")["budget_poste"].sum().to_dict()
+
+    e1, e2, e3 = st.columns(3)
+    e1.metric(
+        "Séjour de référence · Espagne",
+        f"{reference_totals.get('Espagne', 0):,.0f} €".replace(",", " "),
+        f"{reference_totals.get('Espagne', 0) - reference_totals.get('France', 0):+,.0f} € vs France".replace(",", " "),
+        delta_color="inverse",
+    )
+    e2.metric(
+        "Séjour de référence · Italie",
+        f"{reference_totals.get('Italie', 0):,.0f} €".replace(",", " "),
+        f"{reference_totals.get('Italie', 0) - reference_totals.get('France', 0):+,.0f} € vs France".replace(",", " "),
+        delta_color="inverse",
+    )
+    e3.metric("Séjour de référence · France", f"{reference_totals.get('France', 0):,.0f} €".replace(",", " "))
+
+    euro_bars = alt.Chart(reference_prices).mark_bar(
+        cornerRadiusTopLeft=3, cornerRadiusTopRight=3
+    ).encode(
+        x=alt.X("poste:N", title=None, axis=alt.Axis(labelAngle=-25, labelLimit=180)),
+        xOffset=alt.XOffset("pays:N", sort=["Espagne", "Italie", "France"]),
+        y=alt.Y("prix_unitaire_estime:Q", title="Prix unitaire indicatif (€)"),
+        color=alt.Color("pays:N", title="Pays", scale=country_colors),
+        tooltip=[
+            alt.Tooltip("poste:N", title="Poste"),
+            alt.Tooltip("pays:N", title="Pays"),
+            alt.Tooltip("unite:N", title="Unité"),
+            alt.Tooltip("prix_unitaire_estime:Q", title="Prix indicatif", format=".2f"),
+        ],
+    )
+    euro_labels = euro_bars.mark_text(dy=-8, fontSize=12).encode(
+        text=alt.Text("prix_unitaire_estime:Q", format=".0f"),
+        color=alt.value("#888"),
+    )
+    st.altair_chart((euro_bars + euro_labels).properties(height=430), use_container_width=True)
+
+    euro_table = reference_prices.pivot(
+        index=["poste", "unite"], columns="pays", values="prix_unitaire_estime"
+    ).reset_index()
+    st.dataframe(
+        euro_table,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "poste": "Poste",
+            "unite": "Unité",
+            "Espagne": st.column_config.NumberColumn("Espagne", format="%.2f €"),
+            "Italie": st.column_config.NumberColumn("Italie", format="%.2f €"),
+            "France": st.column_config.NumberColumn("France", format="%.2f €"),
+        },
+    )
+    st.info(
+        "Scénario par défaut : 3 nuits, 4 déjeuners, 4 dîners, 4 boissons alcoolisées, "
+        "4 boissons sans alcool, 3 jours de transport local et 2 activités."
+    )
+
+    st.divider()
+    st.subheader("Indices officiels utilisés pour calculer les écarts")
     st.caption(
         f"Indices Eurostat {year}, moyenne UE = 100. Un indice de 85 signifie un niveau de prix "
         "environ 15 % inférieur à la moyenne européenne ; ce n'est pas un tarif en euros."
@@ -407,10 +493,6 @@ with tab_budget:
     price_view = detailed_prices_df[
         detailed_prices_df["categorie"].isin(selected_price_categories)
     ].copy()
-    country_colors = alt.Scale(
-        domain=["Espagne", "Italie", "France"],
-        range=["#f2b134", "#2a9d8f", "#457b9d"],
-    )
 
     if price_view.empty:
         st.info("Sélectionnez au moins une catégorie.")
@@ -456,7 +538,7 @@ with tab_budget:
         )
 
     st.divider()
-    st.subheader("Budget concret simulé en euros")
+    st.subheader("Personnaliser les prix et le budget")
     st.warning(
         "Les montants ci-dessous ne sont pas des tarifs moyens observés. Vous saisissez une base française, "
         "puis l'application estime les équivalents espagnol et italien à partir des indices officiels. "
@@ -482,7 +564,6 @@ with tab_budget:
         key="budget_editor",
     )
 
-    price_lookup = detailed_prices_df.set_index(["geo", "code_eurostat"])["indice_prix"].to_dict()
     budget_rows = []
     for _, row in edited_budget.iterrows():
         french_index = price_lookup.get(("FR", row["code_proxy"]))

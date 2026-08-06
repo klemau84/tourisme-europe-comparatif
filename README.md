@@ -1,9 +1,12 @@
-# Tourisme Europe comparatif — V3
+# Tourisme Europe comparatif — V3.1
 
 Application Streamlit comparant la fréquentation et la compétitivité touristique de 15 pays européens, avec une analyse approfondie France–Espagne.
 
 ## Nouveautés V3
 
+- ouverture directe sur les tarifs indicatifs en euros ;
+- tableau des prix unitaires France–Espagne–Italie avant les indices statistiques ;
+- budget de séjour de référence immédiatement visible ;
 - comparateur détaillé France–Espagne–Italie sur six postes de prix ;
 - bargraphes groupés, valeurs visibles et référence UE=100 ;
 - simulateur de budget en euros avec quantités et prix français modifiables ;

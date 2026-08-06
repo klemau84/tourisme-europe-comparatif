@@ -242,7 +242,7 @@ def main() -> None:
     budget.to_csv(DATA / "budget_scenario.csv", index=False, encoding="utf-8-sig")
 
     metadata = pd.DataFrame([
-        ["version", "V3.0"],
+        ["version", "V3.1"],
         ["annee_reference", YEAR],
         ["date_actualisation_utc", datetime.now(timezone.utc).replace(microsecond=0).isoformat()],
         ["source_principale", "Eurostat"],
