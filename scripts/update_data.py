@@ -110,8 +110,93 @@ def main() -> None:
     ]
     result[ordered].to_csv(DATA / "comparatif_pays.csv", index=False, encoding="utf-8-sig")
 
+    # Évolution annuelle : photographie cohérente avant, pendant et après Covid.
+    history_payload = fetch(
+        "tour_occ_ninat", time=[str(year) for year in range(2019, int(YEAR) + 1)],
+        geo=list(COUNTRIES), unit="NR", c_resid="TOTAL", nace_r2="I551-I553",
+    )
+    history = jsonstat_rows(history_payload)[["geo", "time", "value"]]
+    history = history.rename(columns={"time": "annee", "value": "nuitees_total"})
+    history["pays"] = history["geo"].map(COUNTRIES)
+    base_2019 = history[history["annee"] == "2019"][["geo", "nuitees_total"]].rename(
+        columns={"nuitees_total": "nuitees_2019"}
+    )
+    history = history.merge(base_2019, on="geo", how="left")
+    history["indice_2019_100"] = 100 * history["nuitees_total"] / history["nuitees_2019"]
+    history[["geo", "pays", "annee", "nuitees_total", "indice_2019_100"]].to_csv(
+        DATA / "evolution_annuelle.csv", index=False, encoding="utf-8-sig"
+    )
+
+    # Saisonnalité mensuelle de l'année annuelle de référence.
+    monthly_payload = fetch(
+        "tour_occ_nim", sinceTimePeriod=f"{YEAR}-01", untilTimePeriod=f"{YEAR}-12",
+        geo=list(COUNTRIES), unit="NR", c_resid="TOTAL", nace_r2="I551-I553",
+    )
+    monthly = jsonstat_rows(monthly_payload)[["geo", "time", "value"]].rename(
+        columns={"time": "mois", "value": "nuitees"}
+    )
+    monthly["pays"] = monthly["geo"].map(COUNTRIES)
+    monthly["numero_mois"] = monthly["mois"].str[-2:].astype(int)
+    totals = monthly.groupby("geo")["nuitees"].sum().rename("total_annuel")
+    monthly = monthly.merge(totals, on="geo", how="left")
+    monthly["part_annuelle_pct"] = 100 * monthly["nuitees"] / monthly["total_annuel"]
+    monthly.to_csv(DATA / "saisonnalite_mensuelle.csv", index=False, encoding="utf-8-sig")
+
+    seasonality_rows = []
+    month_names = {
+        1: "Janvier", 2: "Février", 3: "Mars", 4: "Avril", 5: "Mai", 6: "Juin",
+        7: "Juillet", 8: "Août", 9: "Septembre", 10: "Octobre", 11: "Novembre", 12: "Décembre",
+    }
+    for geo, group in monthly.groupby("geo"):
+        peak = group.nlargest(3, "nuitees")
+        best = group.loc[group["nuitees"].idxmax()]
+        summer = group[group["numero_mois"].isin([6, 7, 8])]["part_annuelle_pct"].sum()
+        seasonality_rows.append({
+            "geo": geo,
+            "pays": COUNTRIES[geo],
+            "part_3_mois_forts_pct": peak["part_annuelle_pct"].sum(),
+            "part_juin_aout_pct": summer,
+            "mois_pic": month_names[int(best["numero_mois"])],
+            "nuitees_mois_pic": best["nuitees"],
+        })
+    pd.DataFrame(seasonality_rows).to_csv(
+        DATA / "indicateurs_saisonnalite.csv", index=False, encoding="utf-8-sig"
+    )
+
+    # Répartition des nuitées entre hôtels, locations de courte durée et campings.
+    accommodation_payload = fetch(
+        "tour_occ_ninat", time=YEAR, geo=list(COUNTRIES), unit="NR", c_resid="TOTAL",
+        nace_r2=["I551", "I552", "I553"],
+    )
+    accommodation = jsonstat_rows(accommodation_payload)[["geo", "nace_r2", "value"]]
+    accommodation = accommodation.pivot(index="geo", columns="nace_r2", values="value").reset_index()
+    accommodation = accommodation.rename(columns={
+        "I551": "hotels", "I552": "locations_courte_duree", "I553": "campings",
+    })
+    accommodation["pays"] = accommodation["geo"].map(COUNTRIES)
+    accommodation["total"] = accommodation[["hotels", "locations_courte_duree", "campings"]].sum(axis=1)
+    for col in ["hotels", "locations_courte_duree", "campings"]:
+        accommodation[f"part_{col}_pct"] = 100 * accommodation[col] / accommodation["total"]
+    accommodation.to_csv(DATA / "types_hebergement.csv", index=False, encoding="utf-8-sig")
+
+    # Comparaison NUTS 2 France-Espagne. Les codes nationaux et anciennes nomenclatures sont exclus.
+    regional_payload = fetch(
+        "tour_occ_nin2", time=YEAR, unit="NR", c_resid="TOTAL", nace_r2="I551-I553",
+    )
+    regional = jsonstat_rows(regional_payload)[["geo", "value"]].rename(columns={"value": "nuitees_total"})
+    regional = regional[
+        regional["geo"].str.len().eq(4)
+        & regional["geo"].str.startswith(("FR", "ES"))
+    ].copy()
+    geo_labels = regional_payload["dimension"]["geo"]["category"]["label"]
+    regional["region"] = regional["geo"].map(geo_labels)
+    regional["pays"] = regional["geo"].str[:2].map({"FR": "France", "ES": "Espagne"})
+    regional.sort_values("nuitees_total", ascending=False).to_csv(
+        DATA / "regions_france_espagne.csv", index=False, encoding="utf-8-sig"
+    )
+
     metadata = pd.DataFrame([
-        ["version", "V1.0"],
+        ["version", "V2.0"],
         ["annee_reference", YEAR],
         ["date_actualisation_utc", datetime.now(timezone.utc).replace(microsecond=0).isoformat()],
         ["source_principale", "Eurostat"],

@@ -6,3 +6,5 @@ Occupation hôtelière,Eurostat,tour_occ_anor,https://ec.europa.eu/eurostat/data
 Prix,Eurostat,prc_ppp_ind,https://ec.europa.eu/eurostat/databrowser/view/prc_ppp_ind/default/table,Indice comparatif de prix restaurants et hôtels UE=100
 Population,Eurostat,demo_pjan,https://ec.europa.eu/eurostat/databrowser/view/demo_pjan/default/table,Population utilisée pour les ratios par habitant
 Contexte,OCDE,Tourism Trends and Policies 2026,https://www.oecd.org/en/publications/oecd-tourism-trends-and-policies-2026_3fd3cd75-en.html,Analyse des politiques et performances touristiques
+Saisonnalité,Eurostat,tour_occ_nim,https://ec.europa.eu/eurostat/databrowser/view/tour_occ_nim/default/table,Nuitées mensuelles comparables
+Régions,Eurostat,tour_occ_nin2,https://ec.europa.eu/eurostat/databrowser/view/tour_occ_nin2/default/table,Nuitées par région NUTS 2

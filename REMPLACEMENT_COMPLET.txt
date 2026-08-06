@@ -1,1 +1,1 @@
-Conserver uniquement le dossier .git du dépôt local, remplacer le reste par le contenu de ce ZIP, puis valider avec le message : V1 - Comparatif tourisme Europe France Espagne
+Conserver uniquement le dossier .git du dépôt local, remplacer le reste par le contenu de ce ZIP, puis valider avec le message : V2 - Evolution saisonnalite hebergements et regions

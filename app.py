@@ -11,13 +11,18 @@ DATA = ROOT / "data"
 
 
 @st.cache_data
-def load_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict[str, str]]:
+def load_data():
     countries = pd.read_csv(DATA / "comparatif_pays.csv")
     readings = pd.read_csv(DATA / "lectures_pays.csv").fillna("")
     sources = pd.read_csv(DATA / "sources.csv")
+    history = pd.read_csv(DATA / "evolution_annuelle.csv", dtype={"annee": str})
+    monthly = pd.read_csv(DATA / "saisonnalite_mensuelle.csv")
+    seasonality = pd.read_csv(DATA / "indicateurs_saisonnalite.csv")
+    accommodation = pd.read_csv(DATA / "types_hebergement.csv")
+    regions = pd.read_csv(DATA / "regions_france_espagne.csv")
     metadata_frame = pd.read_csv(DATA / "metadonnees.csv")
     metadata = dict(zip(metadata_frame["cle"], metadata_frame["valeur"].astype(str)))
-    return countries, readings, sources, metadata
+    return countries, readings, sources, history, monthly, seasonality, accommodation, regions, metadata
 
 
 def millions(value: float) -> str:
@@ -64,12 +69,15 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-df, readings_df, sources_df, metadata = load_data()
+(
+    df, readings_df, sources_df, history_df, monthly_df, seasonality_df,
+    accommodation_df, regions_df, metadata,
+) = load_data()
 year = metadata.get("annee_reference", "2024")
 
 st.title("Tourisme en Europe · fréquentation et compétitivité")
 st.caption(
-    "Comparer les volumes ne suffit pas : cette V1 croise les nuitées, la durée des séjours, "
+    "Comparer les volumes ne suffit pas : cette V2 croise les nuitées, la durée des séjours, "
     "la clientèle étrangère, l'hébergement, l'occupation et les prix."
 )
 
@@ -93,7 +101,7 @@ with st.sidebar:
     )
     st.divider()
     st.caption(
-        f"Données annuelles {year} · Eurostat · version {metadata.get('version', 'V1.0')}"
+        f"Données annuelles {year} · Eurostat · version {metadata.get('version', 'V2.0')}"
     )
 
 filtered = df[df["pays"].isin(chosen)].copy()
@@ -101,9 +109,13 @@ if filtered.empty:
     st.warning("Sélectionnez au moins un pays.")
     st.stop()
 
-tab_overview, tab_duel, tab_reasons, tab_prices, tab_data, tab_sources = st.tabs(
+(
+    tab_overview, tab_duel, tab_history, tab_seasonality, tab_regions,
+    tab_reasons, tab_prices, tab_data, tab_sources,
+) = st.tabs(
     [
-        "Vue européenne", "France vs Espagne", "Pourquoi ces écarts ?",
+        "Vue européenne", "France vs Espagne", "Évolution 2019–2024",
+        "Saisonnalité", "Régions France–Espagne", "Pourquoi ces écarts ?",
         "Hébergements & prix", "Données détaillées", "Méthode & sources",
     ]
 )
@@ -171,11 +183,14 @@ with tab_duel:
         unsafe_allow_html=True,
     )
 
-    d1, d2, d3, d4 = st.columns(4)
+    es_season = seasonality_df[seasonality_df["geo"] == "ES"].iloc[0]
+    fr_season = seasonality_df[seasonality_df["geo"] == "FR"].iloc[0]
+    d1, d2, d3, d4, d5 = st.columns(5)
     d1.metric("Avantage nuitées Espagne", millions(spain["nuitees_total"] - france["nuitees_total"]))
     d2.metric("Clientèle étrangère", f"{spain['part_etrangere_pct']:.1f} % ES", f"France {france['part_etrangere_pct']:.1f} %")
     d3.metric("Occupation hôtelière", f"{spain['occupation_hotels_pct']:.1f} % ES", f"France {france['occupation_hotels_pct']:.1f} %")
     d4.metric("Indice de prix", f"{spain['indice_prix_restaurants_hotels']:.1f} ES", f"France {france['indice_prix_restaurants_hotels']:.1f}")
+    d5.metric("3 mois les plus forts", f"{es_season['part_3_mois_forts_pct']:.1f} % ES", f"France {fr_season['part_3_mois_forts_pct']:.1f} %")
 
     comparison = pd.DataFrame({
         "Indicateur": [
@@ -207,6 +222,112 @@ with tab_duel:
         "son problème comparatif est moins l'attraction initiale que la durée et la conversion en nuitées."
     )
 
+    st.markdown("#### Structure des hébergements")
+    duel_accommodation = accommodation_df[accommodation_df["geo"].isin(["ES", "FR"])].set_index("pays")
+    duel_accommodation = duel_accommodation[
+        ["part_hotels_pct", "part_locations_courte_duree_pct", "part_campings_pct"]
+    ].rename(columns={
+        "part_hotels_pct": "Hôtels",
+        "part_locations_courte_duree_pct": "Locations courte durée",
+        "part_campings_pct": "Campings",
+    })
+    st.bar_chart(duel_accommodation)
+
+with tab_history:
+    st.subheader("Évolution des nuitées depuis 2019")
+    selected_history = st.multiselect(
+        "Pays à comparer dans le temps",
+        filtered["pays"].tolist(),
+        default=[p for p in ["Espagne", "France", "Italie", "Allemagne"] if p in filtered["pays"].tolist()],
+        key="history_countries",
+    )
+    history_view = history_df[history_df["pays"].isin(selected_history)].copy()
+    if history_view.empty:
+        st.info("Sélectionnez au moins un pays.")
+    else:
+        mode = st.radio(
+            "Affichage",
+            ["Indice 2019 = 100", "Nuitées en millions"],
+            horizontal=True,
+        )
+        if mode == "Indice 2019 = 100":
+            chart = history_view.pivot(index="annee", columns="pays", values="indice_2019_100")
+            st.line_chart(chart)
+            st.caption("100 correspond au niveau de 2019 pour chaque pays. Cette vue compare la vitesse de reprise, pas la taille des marchés.")
+        else:
+            chart = history_view.assign(nuitees_millions=history_view["nuitees_total"] / 1e6).pivot(
+                index="annee", columns="pays", values="nuitees_millions"
+            )
+            st.line_chart(chart)
+
+        latest_indices = history_view[history_view["annee"] == str(year)].sort_values("indice_2019_100", ascending=False)
+        st.dataframe(
+            latest_indices[["pays", "nuitees_total", "indice_2019_100"]],
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "pays": "Pays",
+                "nuitees_total": st.column_config.NumberColumn(f"Nuitées {year}", format="%,d"),
+                "indice_2019_100": st.column_config.NumberColumn("Indice 2019=100", format="%.1f"),
+            },
+        )
+
+with tab_seasonality:
+    st.subheader(f"Saisonnalité mensuelle · {year}")
+    selected_season = st.multiselect(
+        "Pays à comparer mois par mois",
+        filtered["pays"].tolist(),
+        default=[p for p in ["Espagne", "France"] if p in filtered["pays"].tolist()],
+        key="season_countries",
+    )
+    monthly_view = monthly_df[monthly_df["pays"].isin(selected_season)].copy()
+    if monthly_view.empty:
+        st.info("Sélectionnez au moins un pays.")
+    else:
+        month_labels = {
+            1: "Jan", 2: "Fév", 3: "Mar", 4: "Avr", 5: "Mai", 6: "Juin",
+            7: "Juil", 8: "Août", 9: "Sept", 10: "Oct", 11: "Nov", 12: "Déc",
+        }
+        monthly_view["libelle_mois"] = monthly_view["numero_mois"].map(month_labels)
+        chart = monthly_view.pivot(index="numero_mois", columns="pays", values="part_annuelle_pct")
+        chart.index = [month_labels[int(month)] for month in chart.index]
+        st.line_chart(chart)
+        st.caption("Chaque courbe totalise 100 %. Elle montre la concentration du tourisme dans l'année indépendamment de la taille du pays.")
+
+        indicators = seasonality_df[seasonality_df["pays"].isin(selected_season)].sort_values(
+            "part_3_mois_forts_pct", ascending=False
+        )
+        st.dataframe(
+            indicators[["pays", "part_3_mois_forts_pct", "part_juin_aout_pct", "mois_pic", "nuitees_mois_pic"]],
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "pays": "Pays",
+                "part_3_mois_forts_pct": st.column_config.ProgressColumn("3 mois les plus forts", min_value=0, max_value=100, format="%.1f %%"),
+                "part_juin_aout_pct": st.column_config.NumberColumn("Part juin-août", format="%.1f %%"),
+                "mois_pic": "Mois de pointe",
+                "nuitees_mois_pic": st.column_config.NumberColumn("Nuitées du mois de pointe", format="%,d"),
+            },
+        )
+
+with tab_regions:
+    st.subheader("Régions touristiques françaises et espagnoles")
+    st.caption("Comparaison NUTS 2 : elle évite de réduire les performances nationales aux seules moyennes de pays.")
+    region_country = st.radio("Territoire", ["France et Espagne", "France", "Espagne"], horizontal=True)
+    regions_view = regions_df.copy()
+    if region_country != "France et Espagne":
+        regions_view = regions_view[regions_view["pays"] == region_country]
+    top_n = st.slider("Nombre de régions affichées", 5, 30, 15)
+    region_chart = regions_view.nlargest(top_n, "nuitees_total").copy()
+    region_chart["nuitees_millions"] = region_chart["nuitees_total"] / 1e6
+    st.bar_chart(region_chart.set_index("region")[["nuitees_millions"]])
+    st.dataframe(
+        region_chart[["pays", "region", "nuitees_total"]],
+        use_container_width=True,
+        hide_index=True,
+        column_config={"nuitees_total": st.column_config.NumberColumn("Nuitées", format="%,d")},
+    )
+
 with tab_reasons:
     st.subheader("Facteurs explicatifs")
     selected_country = st.selectbox("Analyser un pays", filtered["pays"].tolist())
@@ -228,7 +349,7 @@ with tab_reasons:
     ], columns=["Facteur", "Lecture"])
     st.dataframe(factors, use_container_width=True, hide_index=True)
     st.warning(
-        "La V1 ne fabrique pas de note d'accueil. Les avis en ligne, les classements éditoriaux et les impressions "
+        "La V2 ne fabrique pas de note d'accueil. Les avis en ligne, les classements éditoriaux et les impressions "
         "nationales ne constituent pas une mesure homogène. Cet axe sera ajouté uniquement avec une enquête "
         "comparable, datée et documentée."
     )
@@ -251,6 +372,17 @@ with tab_prices:
         "Un prix bas n'entraîne pas automatiquement une forte fréquentation. Il devient un avantage lorsqu'il est "
         "combiné à une capacité suffisante, une bonne accessibilité, un produit touristique lisible et une saison assez longue."
     )
+
+    st.markdown("#### Répartition des nuitées par type d'hébergement")
+    accommodation_view = accommodation_df[accommodation_df["pays"].isin(chosen)].set_index("pays")
+    accommodation_chart = accommodation_view[
+        ["part_hotels_pct", "part_locations_courte_duree_pct", "part_campings_pct"]
+    ].rename(columns={
+        "part_hotels_pct": "Hôtels",
+        "part_locations_courte_duree_pct": "Locations courte durée",
+        "part_campings_pct": "Campings",
+    })
+    st.bar_chart(accommodation_chart)
 
 with tab_data:
     st.subheader("Base comparable complète")
