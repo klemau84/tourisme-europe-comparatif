@@ -1,0 +1,19 @@
+﻿geo,pays,categorie,code_eurostat,indice_prix,annee,nature_indicateur,limite
+ES,Espagne,Alimentation et boissons sans alcool,A0101,95.2,2024,Indice comparatif de niveau de prix · UE=100,Achats en magasin ; utile pour les courses et locations autonomes.
+FR,France,Alimentation et boissons sans alcool,A0101,110.1,2024,Indice comparatif de niveau de prix · UE=100,Achats en magasin ; utile pour les courses et locations autonomes.
+IT,Italie,Alimentation et boissons sans alcool,A0101,101.7,2024,Indice comparatif de niveau de prix · UE=100,Achats en magasin ; utile pour les courses et locations autonomes.
+ES,Espagne,Boissons sans alcool,A010102,100.6,2024,Indice comparatif de niveau de prix · UE=100,"Prix de détail : proxy, pas prix facturé dans un bar."
+FR,France,Boissons sans alcool,A010102,96.9,2024,Indice comparatif de niveau de prix · UE=100,"Prix de détail : proxy, pas prix facturé dans un bar."
+IT,Italie,Boissons sans alcool,A010102,81.8,2024,Indice comparatif de niveau de prix · UE=100,"Prix de détail : proxy, pas prix facturé dans un bar."
+ES,Espagne,Boissons alcoolisées,A010201,90.5,2024,Indice comparatif de niveau de prix · UE=100,"Prix de détail : proxy, pas prix facturé dans un bar."
+FR,France,Boissons alcoolisées,A010201,102.3,2024,Indice comparatif de niveau de prix · UE=100,"Prix de détail : proxy, pas prix facturé dans un bar."
+IT,Italie,Boissons alcoolisées,A010201,83.9,2024,Indice comparatif de niveau de prix · UE=100,"Prix de détail : proxy, pas prix facturé dans un bar."
+ES,Espagne,Services de transport,A010703,81.5,2024,Indice comparatif de niveau de prix · UE=100,Services de transport de voyageurs ; carburant et location de voiture non inclus.
+FR,France,Services de transport,A010703,116.3,2024,Indice comparatif de niveau de prix · UE=100,Services de transport de voyageurs ; carburant et location de voiture non inclus.
+IT,Italie,Services de transport,A010703,84.8,2024,Indice comparatif de niveau de prix · UE=100,Services de transport de voyageurs ; carburant et location de voiture non inclus.
+ES,Espagne,Loisirs et culture,A0109,94.2,2024,Indice comparatif de niveau de prix · UE=100,Agrégat large de biens et services de loisirs et culture.
+FR,France,Loisirs et culture,A0109,105.7,2024,Indice comparatif de niveau de prix · UE=100,Agrégat large de biens et services de loisirs et culture.
+IT,Italie,Loisirs et culture,A0109,93.9,2024,Indice comparatif de niveau de prix · UE=100,Agrégat large de biens et services de loisirs et culture.
+ES,Espagne,Hébergements et restaurants,A0111,83.9,2024,Indice comparatif de niveau de prix · UE=100,Hôtels et restaurants non séparables dans la statistique officielle.
+FR,France,Hébergements et restaurants,A0111,110.0,2024,Indice comparatif de niveau de prix · UE=100,Hôtels et restaurants non séparables dans la statistique officielle.
+IT,Italie,Hébergements et restaurants,A0111,106.9,2024,Indice comparatif de niveau de prix · UE=100,Hôtels et restaurants non séparables dans la statistique officielle.

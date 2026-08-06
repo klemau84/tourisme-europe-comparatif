@@ -1,0 +1,8 @@
+﻿poste,unite,quantite_defaut,prix_base_france_eur,code_proxy,precision
+Hébergement,nuit,3,120.0,A0111,Proxy officiel commun hôtels-restaurants
+Restaurant · déjeuner,repas,4,20.0,A0111,Proxy officiel commun hôtels-restaurants
+Restaurant · dîner,repas,4,35.0,A0111,Proxy officiel commun hôtels-restaurants
+Bar · boisson alcoolisée,verre,4,8.0,A010201,"Proxy prix de détail, pas tarif au comptoir"
+Bar · boisson sans alcool,verre,4,5.0,A010102,"Proxy prix de détail, pas tarif au comptoir"
+Transport local,jour,3,15.0,A010703,Services de transport
+Loisirs et culture,entrée/jour,2,25.0,A0109,Agrégat loisirs et culture

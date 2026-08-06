@@ -22,6 +22,15 @@ COUNTRIES = {
     "NL": "Pays-Bas", "BE": "Belgique", "IE": "Irlande", "DK": "Danemark",
     "SE": "Suède", "CZ": "Tchéquie", "PL": "Pologne",
 }
+PRICE_COUNTRIES = {"ES": "Espagne", "FR": "France", "IT": "Italie"}
+PRICE_CATEGORIES = {
+    "A0111": ("Hébergements et restaurants", "Hôtels et restaurants non séparables dans la statistique officielle."),
+    "A0101": ("Alimentation et boissons sans alcool", "Achats en magasin ; utile pour les courses et locations autonomes."),
+    "A010102": ("Boissons sans alcool", "Prix de détail : proxy, pas prix facturé dans un bar."),
+    "A010201": ("Boissons alcoolisées", "Prix de détail : proxy, pas prix facturé dans un bar."),
+    "A010703": ("Services de transport", "Services de transport de voyageurs ; carburant et location de voiture non inclus."),
+    "A0109": ("Loisirs et culture", "Agrégat large de biens et services de loisirs et culture."),
+}
 
 
 def fetch(dataset: str, **params: object) -> dict:
@@ -195,8 +204,45 @@ def main() -> None:
         DATA / "regions_france_espagne.csv", index=False, encoding="utf-8-sig"
     )
 
+    # Prix détaillés France-Espagne-Italie. Eurostat ne sépare pas hôtels et restaurants,
+    # ni les consommations servies au bar : ces limites sont conservées dans le fichier.
+    price_payload = fetch(
+        "prc_ppp_ind", time=YEAR, geo=list(PRICE_COUNTRIES), na_item="PLI_EU27_2020",
+        ppp_cat=list(PRICE_CATEGORIES),
+    )
+    prices = jsonstat_rows(price_payload)[["geo", "ppp_cat", "value"]].rename(
+        columns={"ppp_cat": "code_eurostat", "value": "indice_prix"}
+    )
+    prices["pays"] = prices["geo"].map(PRICE_COUNTRIES)
+    prices["categorie"] = prices["code_eurostat"].map(
+        {code: values[0] for code, values in PRICE_CATEGORIES.items()}
+    )
+    prices["limite"] = prices["code_eurostat"].map(
+        {code: values[1] for code, values in PRICE_CATEGORIES.items()}
+    )
+    prices["annee"] = int(YEAR)
+    prices["nature_indicateur"] = "Indice comparatif de niveau de prix · UE=100"
+    prices[[
+        "geo", "pays", "categorie", "code_eurostat", "indice_prix", "annee",
+        "nature_indicateur", "limite",
+    ]].to_csv(DATA / "prix_detailles_officiels.csv", index=False, encoding="utf-8-sig")
+
+    # Hypothèses modifiables du simulateur. Ce ne sont pas des tarifs observés.
+    budget = pd.DataFrame([
+        ["Hébergement", "nuit", 3, 120.0, "A0111", "Proxy officiel commun hôtels-restaurants"],
+        ["Restaurant · déjeuner", "repas", 4, 20.0, "A0111", "Proxy officiel commun hôtels-restaurants"],
+        ["Restaurant · dîner", "repas", 4, 35.0, "A0111", "Proxy officiel commun hôtels-restaurants"],
+        ["Bar · boisson alcoolisée", "verre", 4, 8.0, "A010201", "Proxy prix de détail, pas tarif au comptoir"],
+        ["Bar · boisson sans alcool", "verre", 4, 5.0, "A010102", "Proxy prix de détail, pas tarif au comptoir"],
+        ["Transport local", "jour", 3, 15.0, "A010703", "Services de transport"],
+        ["Loisirs et culture", "entrée/jour", 2, 25.0, "A0109", "Agrégat loisirs et culture"],
+    ], columns=[
+        "poste", "unite", "quantite_defaut", "prix_base_france_eur", "code_proxy", "precision",
+    ])
+    budget.to_csv(DATA / "budget_scenario.csv", index=False, encoding="utf-8-sig")
+
     metadata = pd.DataFrame([
-        ["version", "V2.0"],
+        ["version", "V3.0"],
         ["annee_reference", YEAR],
         ["date_actualisation_utc", datetime.now(timezone.utc).replace(microsecond=0).isoformat()],
         ["source_principale", "Eurostat"],
